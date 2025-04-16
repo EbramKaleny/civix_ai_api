@@ -1,6 +1,0 @@
-services:
-  - type: web
-    name: civix-ai-api
-    runtime: python
-    buildCommand: ""
-    startCommand: gunicorn app:app

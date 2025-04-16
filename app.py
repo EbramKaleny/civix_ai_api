@@ -1,38 +1,31 @@
 from flask import Flask, request, jsonify
-from model_def import CivixModel
-from PIL import Image
 import torch
-import torchvision.transforms as transforms
-import io
+import torch.nn as nn
+from torchvision import transforms
+from PIL import Image
 
-app = Flask(__name__)
-
-# Load model
-model = CivixModel()
-model.load_state_dict(torch.load("model.pth", map_location=torch.device("cpu")))
+# Load your model
+model = torch.load("model.pth", map_location=torch.device("cpu"))
 model.eval()
 
-# Preprocessing function
-transform = transforms.Compose([
-    transforms.Resize((224, 224)),
-    transforms.ToTensor(),
-])
+# Flask setup
+app = Flask(__name__)
 
 @app.route('/predict', methods=['POST'])
 def predict():
     if 'file' not in request.files:
-        return jsonify({'error': 'No file provided'}), 400
+        return jsonify({"error": "No file uploaded"}), 400
 
     file = request.files['file']
-    image = Image.open(io.BytesIO(file.read())).convert("RGB")
-    image = transform(image).unsqueeze(0)
+    image = Image.open(file.stream)
 
-    with torch.no_grad():
-        outputs = model(image)
-        probs = torch.nn.functional.softmax(outputs, dim=1)
-        confidence, predicted = torch.max(probs, 1)
+    transform = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.ToTensor()
+    ])
 
-    return jsonify({
-        'class': predicted.item(),
-        'confidence': round(confidence.item(), 3)
-    })
+    input_tensor = transform(image).unsqueeze(0)
+    output = model(input_tensor)
+    predicted = torch.argmax(output, dim=1).item()
+
+    return jsonify({"prediction": predicted})
