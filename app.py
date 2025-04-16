@@ -1,31 +1,24 @@
-from flask import Flask, request, jsonify
 import torch
+import torchvision.models as models
 import torch.nn as nn
-from torchvision import transforms
-from PIL import Image
+from flask import Flask, request, jsonify
 
-# Load your model
-model = torch.load("model.pth", map_location=torch.device("cpu"))
+# Load a pretrained ResNet18
+model = models.resnet18(pretrained=False)
+model.fc = nn.Linear(model.fc.in_features, 6)  # 6 classes
+
+# Load the trained weights
+model.load_state_dict(torch.load("model.pth", map_location=torch.device("cpu")))
+
+# Put the model in evaluation mode
 model.eval()
 
-# Flask setup
+# Setup Flask
 app = Flask(__name__)
 
-@app.route('/predict', methods=['POST'])
-def predict():
-    if 'file' not in request.files:
-        return jsonify({"error": "No file uploaded"}), 400
+@app.route('/')
+def home():
+    return "Civix AI model is running!"
 
-    file = request.files['file']
-    image = Image.open(file.stream)
-
-    transform = transforms.Compose([
-        transforms.Resize((224, 224)),
-        transforms.ToTensor()
-    ])
-
-    input_tensor = transform(image).unsqueeze(0)
-    output = model(input_tensor)
-    predicted = torch.argmax(output, dim=1).item()
-
-    return jsonify({"prediction": predicted})
+if __name__ == '__main__':
+    app.run(debug=True)
