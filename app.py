@@ -47,17 +47,23 @@ def predict():
     file = request.files['image']
     try:
         image = Image.open(io.BytesIO(file.read())).convert('RGB')
-    except Exception as e:
+    except Exception:
         return jsonify({'error': 'Invalid image format'}), 400
 
     image = transform(image).unsqueeze(0)  # Add batch dimension
 
     with torch.no_grad():
         outputs = model(image)
-        _, predicted = torch.max(outputs, 1)
-        label = class_names[predicted.item()]
+        probabilities = torch.nn.functional.softmax(outputs[0], dim=0)
+        confidence, predicted_idx = torch.max(probabilities, dim=0)
+        confidence = confidence.item()
 
-    return jsonify({'prediction': label})
+        if confidence < 0.6:
+            return jsonify({'prediction': 'Unknown'})
+        
+        predicted_label = class_names[predicted_idx.item()]
+        return jsonify({'prediction': predicted_label})
+
 
 # --------------------------
 # 5. Run Server
