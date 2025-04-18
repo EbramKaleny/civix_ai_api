@@ -6,23 +6,14 @@ from flask import Flask, request, jsonify
 from PIL import Image
 import io
 
-# --------------------------
-# 1. Setup Model
-# --------------------------
 model = models.resnet18(pretrained=False)
 model.fc = nn.Linear(model.fc.in_features, 6)  # 6 classes
 
 model.load_state_dict(torch.load("model.pth", map_location=torch.device("cpu")))
 model.eval()
 
-# --------------------------
-# 2. Class Labels
-# --------------------------
 class_names = ['broken_streetlights', 'flooding', 'garbage', 'graffiti', 'manhole', 'pothole']
 
-# --------------------------
-# 3. Image Preprocessing
-# --------------------------
 transform = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
@@ -30,9 +21,6 @@ transform = transforms.Compose([
                          std=[0.229, 0.224, 0.225])
 ])
 
-# --------------------------
-# 4. Flask App
-# --------------------------
 app = Flask(__name__)
 
 @app.route('/')
@@ -58,15 +46,12 @@ def predict():
         confidence, predicted_idx = torch.max(probabilities, dim=0)
         confidence = confidence.item()
 
-        if confidence < 0.6:
-            return jsonify({'prediction': 'Unknown'})
+        if confidence < 0.8:
+            return jsonify({'prediction': 'Unknown', 'confidence': round(confidence, 3)})
         
         predicted_label = class_names[predicted_idx.item()]
-        return jsonify({'prediction': predicted_label})
+        return jsonify({'prediction': predicted_label, 'confidence': round(confidence, 3)})
 
 
-# --------------------------
-# 5. Run Server
-# --------------------------
 if __name__ == '__main__':
     app.run(debug=True)
