@@ -3,6 +3,7 @@ import torch
 from torchvision import models, transforms
 from PIL import Image
 import io
+import time
 
 app = Flask(__name__)
 
@@ -28,10 +29,14 @@ transform = transforms.Compose([
 
 @app.route("/predict", methods=["POST"])
 def predict():
+    upload_start_time = time.perf_counter()
     if "image" not in request.files:
         return jsonify({"error": "No image uploaded"}), 400
 
     image = request.files["image"]
+    upload_end_time = time.perf_counter()
+
+    processing_start_time = time.perf_counter()
     img = Image.open(image).convert("RGB")
     img_tensor = transform(img).unsqueeze(0).to(device)
 
@@ -42,9 +47,12 @@ def predict():
         confidence = confidence.item()
         label = CLASS_NAMES[predicted_class.item()] if confidence >= THRESHOLD else "unknown"
 
+    processing_end_time = time.perf_counter()
     return jsonify({
         "prediction": label,
-        "confidence": round(confidence, 4)
+        "confidence": round(confidence, 4),
+        "upload_time": round(upload_end_time - upload_start_time, 4),
+        "processing_time": round(processing_end_time - processing_start_time, 4),
     })
 
 if __name__ == "__main__":
